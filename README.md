@@ -6,7 +6,7 @@
 [![GitHub issues][issue_badge]][issue_link]
 [![GitHub pull requests][pull_badge]][pull_link]
 
-A fast and easy way to handle the user authentication using ldap3 in your Streamlit apps.
+A fast and easy way to handle the user authentication using ldap in your Streamlit apps.
 
 ## What is Streamlit LDAP Authenticator?
 `streamlit-ldap-authenticator` let you add login form and execute authentication before execute your streamlit page app.
@@ -22,7 +22,7 @@ Avaliable reauthentication method
 ## Installation
 Open a terminal and run:
 ``` terminal
-pip install streamlit-ldap3-authenticator
+pip install streamlit-ldap-authenticator
 ```
 
 
@@ -47,7 +47,7 @@ expiry_days = 1
 Create a new file simple_login.py with the following code:
 ``` python
 import streamlit as st
-from streamlit_ldap3_authenticator import Authenticate, LdapConfig, Cookie_Secrets
+from streamlit_ldap_authenticator import Authenticate, LdapConfig, Cookie_Secrets
 
 auth = Authenticate(LdapConfig(st.secrets['ldap']['server_path'], st.secrets['ldap']['domain']),
                      st.secrets['session_state_names']['user'],
@@ -74,7 +74,7 @@ Create a new file title_login.py with the following code:
 ``` python
 import streamlit as st
 from typing import Union
-from streamlit_ldap3_authenticator import Connection, Person, Authenticate, LdapConfig, Cookie_Secrets
+from streamlit_ldap_authenticator import Connection, Person, Authenticate, LdapConfig, Cookie_Secrets
 
 def checkUserByTitle(_: Union[Connection, None], user: [Person, None]):
     title = 'Manager'
@@ -106,7 +106,7 @@ Create a new file report_login.py with the following code:
 ``` python
 import streamlit as st
 from typing import Union
-from streamlit_ldap3_authenticator import Connection, Person, Authenticate, LdapConfig, Cookie_Secrets, getPersonByMail
+from streamlit_ldap_authenticator import Connection, Person, Authenticate, LdapConfig, Cookie_Secrets, getPersonByMail
 
 def checkUserInOrganization(conn: Union[Connection, None], user: Person):
     email = '{manager/director/vp email address here}'
@@ -143,7 +143,7 @@ Create a new file list_login.py with the following code:
 ``` python
 import streamlit as st
 from typing import Union
-from streamlit_ldap3_authenticator import Connection, Person, Authenticate, LdapConfig, Cookie_Secrets
+from streamlit_ldap_authenticator import Connection, Person, Authenticate, LdapConfig, Cookie_Secrets
 
 def checkUserInList(_: Union[Connection, None], user: Person):
     allowUsers = [ '{your email here}' ]
