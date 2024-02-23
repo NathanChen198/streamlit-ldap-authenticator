@@ -1,8 +1,15 @@
-# Welcome to Streamlit LDAP3 Authenticator 🔑
+# Welcome to Streamlit LDAP Authenticator 🔑
+
+[![PyPI][pypi_badge]][pypi_link]
+[![GitHub][github_badge]][github_link]
+[![GitHub license][license_badge]][license_link]
+[![GitHub issues][issue_badge]][issue_link]
+[![GitHub pull requests][pull_badge]][pull_link]
+
 A fast and easy way to handle the user authentication using ldap3 in your Streamlit apps.
 
-## What is Streamlit LDAP3 Authenticator?
-`streamlit-ldap3-authenticator` let you add login form and execute authentication before execute your streamlit page app.
+## What is Streamlit LDAP Authenticator?
+`streamlit-ldap-authenticator` let you add login form and execute authentication before execute your streamlit page app.
 * Easy to add login form before execute your streamlit page app.
 * Each page can have it's own custom user authorization.
 * Authentication using LDAP protocol to connect to active directory.
@@ -161,3 +168,16 @@ Now run it to open the app!
 ``` terminal
 streamlit run list_login.py
 ```
+
+
+
+[pypi_badge]: https://img.shields.io/pypi/v/streamlit-ldap-authenticator.svg
+[pypi_link]: https://pypi.org/project/streamlit-ldap-authenticator/
+[github_badge]: https://badgen.net/badge/icon/GitHub?icon=github&color=black&label
+[github_link]: https://github.com/NathanChen198/streamlit-ldap-authenticator
+[license_badge]: https://img.shields.io/badge/Licence-MIT-gr.svg
+[license_link]: https://github.com/NathanChen198/streamlit-ldap-authenticator/blob/main/LICENSE
+[issue_badge]: https://img.shields.io/github/issues/NathanChen198/streamlit-ldap-authenticator
+[issue_link]: https://github.com/NathanChen198/streamlit-ldap-authenticator/issues
+[pull_badge]: https://img.shields.io/github/issues-pr/NathanChen198/streamlit-ldap-authenticator
+[pull_link]: https://github.com/NathanChen198/streamlit-ldap-authenticator/pulls
