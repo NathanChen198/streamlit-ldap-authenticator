@@ -9,8 +9,8 @@ import jwt
 from streamlit.type_util import LabelVisibility
 from datetime import datetime, timedelta
 from typing import Union, Callable, Literal, Type
-from ldap_authenticate import LdapConfig, Connection, Person, LdapAuthenticate
-from exceptions import CookieError
+from .ldap_authenticate import LdapConfig, Connection, Person, LdapAuthenticate
+from .exceptions import CookieError
 
 FormLocation = Literal['main', 'sidebar']
 def getForm(key: str, location: FormLocation):

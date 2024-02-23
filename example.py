@@ -1,5 +1,5 @@
 import streamlit as st
-from __init__ import Authenticate, LdapConfig, Cookie_Secrets, Connection, Person, LogoutFormConfig, getPersonByMail
+from streamlit_ldap_authenticator import Authenticate, LdapConfig, Cookie_Secrets, Connection, Person, LogoutFormConfig, getPersonByMail
 from typing import Union
 
 def checkUserInOrganization(conn: Union[Connection, None], user: Person):

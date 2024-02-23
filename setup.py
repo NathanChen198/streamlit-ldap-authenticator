@@ -17,7 +17,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://github.com/NathanChen198/streamlit-ldap-authenticator',
-    packages=find_packages(),
+    packages=find_packages(exclude=['*.example', 'example', '*.example.*', 'example.*']),
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3.8",

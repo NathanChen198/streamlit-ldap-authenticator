@@ -9,7 +9,7 @@ from ldap3 import Server, Connection
 from ldap3.abstract.entry import Entry
 from ldap3.abstract.attribute import Attribute
 from typing import List, Union, Callable, Literal
-from exceptions import AdAttributeError
+from .exceptions import AdAttributeError
 
 
 class Person:
