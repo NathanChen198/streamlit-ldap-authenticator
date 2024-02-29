@@ -10,14 +10,14 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='streamlit-ldap-authenticator',
-    version='0.0.3',
+    version='0.0.4',
     author='Nathan Chen',
     author_email='nathan.chen.198@gmail.com',
     description='Authenticate using ldap',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://github.com/NathanChen198/streamlit-ldap-authenticator',
-    packages=find_packages(exclude=['*.example', 'example', '*.example.*', 'example.*']),
+    packages=find_packages(),
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3.8",

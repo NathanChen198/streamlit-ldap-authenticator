@@ -1,286 +1,140 @@
 # Author    : Nathan Chen
-# Date      : 16-Feb-2024
+# Date      : 29-Feb-2024
 
 
 import time
-import streamlit as st
-import extra_streamlit_components as stx
 import jwt
-from streamlit.type_util import LabelVisibility
+import re
+import extra_streamlit_components as stx
+import streamlit as st
 from datetime import datetime, timedelta
-from typing import Union, Callable, Literal, Type
-from .ldap_authenticate import LdapConfig, Connection, Person, LdapAuthenticate
+from typing import Union, Callable, Literal, Optional
+from .ldap_authenticate import Connection, LdapAuthenticate
 from .exceptions import CookieError
-
-FormLocation = Literal['main', 'sidebar']
-def getForm(key: str, location: FormLocation):
-    if location == 'main': return st.form(key)
-    elif location == 'sidebar': return st.sidebar.form(key)
-    else: raise ValueError("Location must be one of 'main' or 'sidebar'")
-
-def getContainer(location: FormLocation):
-    if location == 'main': return st.container()
-    elif location == 'sidebar': return st.sidebar.container()
-    else: raise ValueError("Location must be one of 'main' or 'sidebar'")
+from .configs import LdapConfig, SessionStateConfig, CookieConfig, LoginFormConfig, LogoutFormConfig, AttrDict, UserInfos, getForm, getContainer
 
 
-class TextInputConfig:
-    """ Config for text input
-    
-    ## Properties:
-    label: str | None
-        Label of the text input. if None, lable of the text input will `collapsed`
-    help: str | None
-        An optional tooltip that gets displayed next to the input.
-    placeholder: str | None
-        An optional string displayed when the text input is empty. If None, no text is displayed.
-    """
-    label: Union[str, None]
-    help: Union[str, None]
-    placeholder: Union[str, None]
 
-    def __init__(self,
-                 label: Union[str, None] = None,
-                 help: Union[str, None] = None,
-                 placeholder: Union[str, None] = None):
-        """ Create an instance of `TextInputConfig` object
-        """
-        self.label = label
-        self.help = help
-        self.placeholder = placeholder
+RegexDomain = re.compile(r'^(.*)\\(.*)$')
+RegexEmail = re.compile(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$')
 
-    def get_label(self, default_label: str):
-        """ Get the text input label
-        """
-        return default_label if self.label is None else self.label
-
-    def get_label_visibility(self) -> LabelVisibility:
-        """ Get the text input label visibliity
-        """
-        return 'visible' if self.label is not None else 'collapsed'
-
-
-class ButtonConfig:
-    """ Config for button
-
-    ## Properties
-    lable: str
-        Label of the button
-    help: str | None
-        An optional tooltip that gets displayed next to the button.
-    """
-    label: str
-    help: Union[str, None]
-
-    def __init__(self,
-                 label: str,
-                 help: Union[str, None] = None) -> None:
-        """ Create an instance of `ButtonConfig` object
-        """
-        self.label = label
-        self.help = help
-
-
-class LoginFormConfig:
-    """ Config for login form
-    
-    ## Properties
-    location: 'main' | 'sidebar'
-        location of login form to render
-    title: str | None
-        form title. None will not show the title
-    username: TextInputConfig
-        Config for username input
-    password: TextInputConfig
-        Config for password input
-    sign_in: ButtonConfig
-        Config for sign-in button
-    error_icon: str
-        Icon for error message
-    wrong_message: str
-        Message for wrong username or password
-    """
-    location: FormLocation
-    title: Union[str, None]
-    username: TextInputConfig
-    password: TextInputConfig
-    sign_in: ButtonConfig
-    error_icon: Union[str, None]
-    wrong_message: str
-
-    def __init__(self,
-                 location: FormLocation = 'main',
-                 title: Union[str, None] = 'User Log In',
-                 username: TextInputConfig = TextInputConfig('User Name', placeholder='Your nt login username'),
-                 password: TextInputConfig = TextInputConfig('Password', placeholder='Your nt login password'),
-                 sign_in: ButtonConfig = ButtonConfig('🔑 Sign In'),
-                 error_icon: Union[str, None] = '❌',
-                 wrong_message: str = 'Wrong username or password.'):
-        self.location = location
-        self.title = title
-        self.username = username
-        self.password = password
-        self.sign_in = sign_in
-        self.error_icon = error_icon
-        self.wrong_message = wrong_message
-
-
-class LogoutFormConfig:
-    """ Config for logout form
-
-    ## Properties
-    location: 'main' | 'sidebar'
-        location of login form to render
-    show_welcome: bool
-        `True` will show the welcome message. `False` will hide the welcome message.
-    sign_out: ButtonConfig
-        Config for sign-out button
-    """
-    location: FormLocation
-    show_welcome: bool
-    sign_out: ButtonConfig
-
-    def __init__(self,
-                 location: FormLocation = 'sidebar',
-                 show_welcome: bool = True,
-                 sign_out: ButtonConfig = ButtonConfig('🔐 Sign Out')) -> None:
-        """ Create an instance of `LogoutFormConfig` object
-        """
-        self.location = location
-        self.show_welcome = show_welcome
-        self.sign_out = sign_out
-
-
-class Cookie_Secrets:
-    """ Secrects to encode information to cookie in the client's browser
-
-    ## Properties
-    key: str
-        key password to encode and decode information from cookie in the client's browser
-    name: str
-        name of the cookie to save in the client's browser
-    expiry_days: float
-        The number of days before the reauthentication cookie automatically expires on the client's browser.
-    """
-    key: str
-    name: str
-    expiry_days: float
-
-    def __init__(self, key: str, name: str, expiry_days: float = 7.0):
-        """ Create an instance of `Cookie_Secrets` object
-        """
-        self.key = key
-        self.name = name
-        self.expiry_days = expiry_days
 
 
 class Authenticate:
-    """ Authentication using ldap.
+    """ Authentication using active directory.
         Reauthentication method avaliable
         * steamlit session_state: Valid for the current session. if the page is refreshed, session_state will reset thus loose stored data for reauthentication.
         * cookie in the client's browser: Valid until the cookie in the browser is expired
 
     ## Properties
-    ldap_configs: LdapConfig
-        Config for ldap Authentication
-    ss_user_name: 
-        Optional username key to store in streamlit session_state.
-        None will disable reauthorization using streamlit session_state
-    cookie_secrets:
-        Optional secrects to encode user information to cookie in the client's browser.
-        None will disable reauthorization using cookie in the client's browser.
+    session_configs: SessionStateConfig
+        Streamlit session state key names.
+
+    cookie_configs: CookieConfig | None
+        Optional configuration to encode user information to cookie in the client's browser.
+        Reauthorization using cookie in the client's browser feature will be disabled when `None`.
     """
-    ldap_configs: LdapConfig
-    ss_user_name: Union[str, None]
-    cookie_secrets: Union[Cookie_Secrets, None]
+    session_configs: SessionStateConfig
+    cookie_configs: Optional[CookieConfig]
 
     def __init__(self,
-                 ldap_config: LdapConfig,
-                 ss_user_name: Union[str, None] = None,
-                 cookie_secrets: Union[Cookie_Secrets, None] = None):
+                 ldap_configs: Union[LdapConfig, AttrDict],
+                 session_configs: Union[SessionStateConfig, AttrDict, None] = None,
+                 cookie_configs: Union[CookieConfig, AttrDict, None] = None):
         """ Create a new instance of `Authenticate`
 
         ## Arguments
-        ldap_config: LdapConfig
+        ldap_config: LdapConfig | dict | streamlit.runtime.secrets.AttrDict
             Config for Ldap authentication
 
-        ss_user_name: str | None
-            Optional username key to store in streamlit session_state.
-            None will disable reauthorization using streamlit session_state
+        session_configs: SessionStateConfig | dict | streamlit.runtime.secrets.AttrDict | None
+            Optional streamlit session state key names.
 
-        cookie_secrets: Cookie_Secrets | None
-            Optional secrects to encode user information to cookie in the client's browser.
-            None will disable reauthorization using cookie in the client's browser.
+        cookie_configs: CookieConfig | dict | streamlit.runtime.secrets.AttrDict | None
+            Optional configuration to encode user information to cookie in the client's browser.
+            Reauthorization using cookie in the client's browser feature will be disabled when `None`.
         """
-        self.ldap_configs = ldap_config
-        self.ss_user_name = ss_user_name
-        self.cookie_secrets = cookie_secrets
+        self.session_configs = SessionStateConfig.getInstance(session_configs)
+        self.cookie_configs = CookieConfig.getInstance(cookie_configs)
+        self.ldap_auth = LdapAuthenticate(ldap_configs)
 
-        self.ldap_auth = LdapAuthenticate(ldap_config)
-
-        if cookie_secrets is not None:
+        if cookie_configs is not None:
             self.cookie_manager = stx.CookieManager()
             time.sleep(0.1)
 
 
-    def _getUser(self) -> Union[Person, None]:
+    # streamlit session_state variables
+    def __getUser(self) -> Optional[UserInfos]:
         """ Get the user information from streamlit session_state
             if reauthorization using streamlit session_state is enabled
 
         ## Returns
-        Person | None
-            user information if it is avaliable, otherwise `None`
+        UserInfos | None
+            User information if it is avaliable. otherwise, `None`
         """
-        if self.ss_user_name is None: return None
-        if self.ss_user_name not in st.session_state: return None
-        user = st.session_state[self.ss_user_name]
-        return user if type(user) is Person else None
+        if self.session_configs.user not in st.session_state: return None
+        user = st.session_state[self.session_configs.user]
+        return user if type(user) is dict else None
 
-    def _setUser(self, user: Union[Person, None]):
+    def __setUser(self, user: Optional[UserInfos]):
         """ Assign the user information to session_state of streamlit
             if reauthorization using streamlit session_state is enabled
 
         ## Arguments
-        user : Person | None
-            user information to assign to session_state of streamlit
+        user : UserInfos | None
+            User information to assign to streamlit session_state
         """
-        if self.ss_user_name is None: return
-        else: st.session_state[self.ss_user_name] = user
+        if self.session_configs.user is None: return
+        else: st.session_state[self.session_configs.user] = user
 
+    def __setRememberMe(self, remember_me: bool):
+        st.session_state[self.session_configs.remember_me] = remember_me
 
-    def _token_encode(self, cookie_secrets: Cookie_Secrets, user: Person):
+    def __getRememberMe(self) -> bool:
+        if self.session_configs.remember_me in st.session_state:
+            remember_me = st.session_state[self.session_configs.remember_me]
+            if type(remember_me) is bool: return remember_me
+
+        self.__setRememberMe(True)
+        return True
+    
+
+    # For reauthentication using cookie from client's browser
+    def __tokenEncode(self, cookie_configs: CookieConfig, user: UserInfos):
         """ Encodes the contents for the reauthentication cookie.
 
         ## Arguments
-        user: Person
+        user: UserInfos
             User Information
+
         ## Returns
         str
             The JWT cookie for passwordless reauthentication.
         """
-        exp_date = datetime.utcnow() + timedelta(days=cookie_secrets.expiry_days)
+        exp_date = datetime.utcnow() + timedelta(days=cookie_configs.expiry_days)
+        print(f"ExpiryDate: {exp_date}")
         return jwt.encode({
-            'user': user.toDict(),
+            'user': user,
             'exp_date': exp_date.timestamp()
-        }, cookie_secrets.key, algorithm='HS256')
+        }, cookie_configs.key, algorithm='HS256')
     
-    def _token_decode(self, cookie_secrets: Cookie_Secrets, token):
+    def __tokenDecode(self, cookie_configs: CookieConfig, token) -> Optional[UserInfos]:
         """ Decodes the contents of the reauthentication cookie.
 
         ## Arguments:
         token: any
-        encoded cookie token
+            Encoded cookie token
 
         ## Returns:
-        Person | False
-            the user information if cookie is correct.
+        UserInfos | False
+            User information if cookie is correct.
             otherwise, return `None`
         """
         try:
             if token is None: raise CookieError('No cookie found')
             if type(token) is not str: raise CookieError('Cookie value is expected to be `str`')
             
-            value = jwt.decode(token, cookie_secrets.key, algorithms=['HS256'])
+            value = jwt.decode(token, cookie_configs.key, algorithms=['HS256'])
             if type(value) is not dict: raise CookieError('Decoded cookie is not dict')
 
             if 'exp_date' not in value: raise CookieError('exp_date is not found')
@@ -292,160 +146,196 @@ class Authenticate:
             user = value['user']
             if type(user) is not dict: raise CookieError('user is not dict')
 
-            return Person(user)
+            return user
         except Exception as e:
             # print(f'Token decode error: {e}')
             return None
 
-    def _get_cookie(self):
+    def __getCookie(self) -> Optional[UserInfos]:
         """ Get the decoded user information from cookie in the client's browser.
             if reauthorization using cookie in the client's browser is enabled
 
         ## Returns
-        Person | None
+        UserInfos | None
             user information if it is avaliable and valid, otherwise `None`
         """
-        if self.cookie_secrets is None: return None
+        if self.cookie_configs is None: return None
 
-        token = self.cookie_manager.get(self.cookie_secrets.name)
+        token = self.cookie_manager.get(self.cookie_configs.name)
         time.sleep(0.1)
-        return self._token_decode(self.cookie_secrets, token)
+        return self.__tokenDecode(self.cookie_configs, token)
 
-    def _set_cookie(self, user: Person):
+    def __setCookie(self, user: Optional[UserInfos]):
         """ Assign the encoded user information to cookie in the client's browser
             if reauthorization using cookie in the client's browser is enabled
 
         ## Arguments
-        user: Person
+        user: UserInfos
             User information to assign to cookie in the client's browser
         """
-        if self.cookie_secrets is None: return
+        if user is None: return
+        if self.cookie_configs is None: return
 
-        token = self._token_encode(self.cookie_secrets, user)
-        exp_date = datetime.now() + timedelta(days=self.cookie_secrets.expiry_days)
-        self.cookie_manager.set(self.cookie_secrets.name, token, expires_at=exp_date)
+        remember_me = self.__getRememberMe()
+        if not remember_me: return
+
+        token = self.__tokenEncode(self.cookie_configs, user)
+        exp_date = datetime.now() + timedelta(days=self.cookie_configs.expiry_days)
+        self.cookie_manager.set(self.cookie_configs.name, token, expires_at=exp_date)
         time.sleep(0.1)
 
-    def _delete_cookie(self):
+    def __deleteCookie(self):
         """ Delete the cookie in the client's browser
             if reauthorization using cookie in the client's browser is enabled
         """
-        if self.cookie_secrets is None: return
+        if self.cookie_configs is None: return
 
-        self.cookie_manager.delete(self.cookie_secrets.name)
+        if self.cookie_configs.name in self.cookie_manager.cookies:
+            self.cookie_manager.delete(self.cookie_configs.name)
         time.sleep(0.1)
 
 
-    def _createLoginForm(self,
-                         func: Union[Callable[[Union[Connection, None], Person], Union[Literal[True], str]], None] = None,
-                         config: Union[LoginFormConfig, None] = None):
+
+    def __createLoginForm(self,
+                          additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None,
+                          getLoginUserName: Optional[Callable[[str], str]] = None,
+                          getInfo: Optional[Callable[[Connection, str], Optional[UserInfos]]] = None,
+                          config: Optional[LoginFormConfig] = None):
         """ create the login form
         
         ## Arguments
-        func: ((Connection | None, Person | None) -> (True | str)) | None
+        additionalCheck: ((connection: Connection | None, user: UserInfos) -> (True | str)) | None
             * Function to perform addtional authentication check.
             * Function must return `True` if additional authentication is successful, otherwise must return error message
-            * Passing `None` will ignore additional authentiation check.
+            * Passing `None` will ignore additional authentication check.
+
+        getLoginUserName: ((username: str) -> str) | None
+            Optional function to decode the username entered by user to active directory login username
+
+        getInfo: ((conneciton: Connection, username: str) -> UserInfos | None) | None
+            Optional function to retrieve user information from active directory
 
         config: LoginFormConfig | None
             Optional config for login in form
         """
         config = config if config is not None else LoginFormConfig()
+        getInfo = getInfo if getInfo is not None else self.getInfo
+        getLoginUserName = getLoginUserName if getLoginUserName is not None else self.getLoginUserName
         
         form = getForm('Login', config.location)
 
         if config.title is not None: form.subheader(config.title)
-        username = form.text_input(config.username.get_label('User Name'),
+        username = form.text_input(config.username.label,
                                    placeholder=config.username.placeholder,
                                    help=config.username.help,
-                                   label_visibility=config.username.get_label_visibility())
+                                   label_visibility=config.username.label_visibility)
 
-        password = form.text_input(config.password.get_label('Password'),
+        password = form.text_input(config.password.label,
                                    type='password',
                                    placeholder=config.password.placeholder,
                                    help=config.password.help,
-                                   label_visibility=config.password.get_label_visibility())
+                                   label_visibility=config.password.label_visibility)
         
-        btnCtn, statusCtn = form.columns([1, 3])
+        if self.cookie_configs is not None:
+            btnCtn, chkCtn, statusCtn = form.columns([1, 2, 3])
+            remember_me = self.__getRememberMe()
+            remember_me = chkCtn.checkbox(config.remember_me.label, remember_me,
+                            help=config.remember_me.help,
+                            label_visibility=config.remember_me.label_visibility)
+            self.__setRememberMe(remember_me)
+        else:
+            btnCtn, statusCtn = form.columns([1, 3])
+            self.__setRememberMe(False)
 
         submit = btnCtn.form_submit_button(config.sign_in.label, config.sign_in.help)
         if submit:
             with statusCtn:
                 with st.spinner("Logging in..."):
-                    result = self.ldap_auth.login(username, password, func, config.wrong_message)
+                    login_name = getLoginUserName(username)
+                    result = self.ldap_auth.login(login_name, password, lambda conn: getInfo(conn, username), additionalCheck)
 
                     if type(result) is str:
                         statusCtn.error(result, icon=config.error_icon)
-                    elif type(result) is Person:
+                    elif type(result) is dict:
                         return result
                     else:
                         statusCtn.error(f'Unexpected Return: {result}', icon=config.error_icon)
     
-    def _checkUser(self,
-                   user: Union[Person, None],
-                   connection: Union[Connection, None] = None,
-                   func: Union[Callable[[Union[Connection, None], Person], Union[Literal[True], str]], None] = None):
+    def __checkReauthentication(self,
+                   user: Optional[UserInfos],
+                   additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None) -> bool:
         """ Check user information during reauthorization
 
         ## Arguments
         user : Person | None
             Optional user information to check
         connection: Connection | None
-            Optional ldap connection
-        func: ((Connection | None, Person | None) -> (True | str)) | None
+            Optional active directory connection
+        additionalCheck: ((connection: Connection | None, user: UserInfos) -> (True | str)) | None
             * Function to perform addtional authentication check.
             * Function must return `True` if additional authentication is successful, otherwise must return error message
-            * Passing `None` will ignore additional authentiation check.
+            * Passing `None` will ignore additional authentication check.
 
         ## Returns
         bool
-            `True` if user is authorized to use.
-            otherwise, `False`.
+            * `True` when user is authorized to use.
+            * `None` when user is not UserInfos.
+            * `str` error message when authentication fail.
         """
-        if type(user) is not Person: return False
-        if func is None: return True
-        result = func(connection, user)
+        if type(user) is not dict: return False
+        if additionalCheck is None: return True
+        result = additionalCheck(None, user)
         return result == True
 
     def login(self,
-              func: Union[Callable[[Union[Connection, None], Person], Union[Literal[True], str]], None] = None,
-              config: Union[LoginFormConfig, None] = None):
+              additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None,
+              getLoginUserName: Optional[Callable[[str], str]] = None,
+              getInfo: Optional[Callable[[Connection, str], Optional[UserInfos]]] = None,
+              config: Optional[LoginFormConfig] = None) -> Optional[UserInfos]:
         """ Authentication using ldap. Reauthorize if it is valid and create login form if authorization fail.
 
         ## Arguments
-        func: ((Connection | None, Person | None) -> (True | str)) | None
+        additionalCheck: ((connection: Connection | None, user: UserInfos) -> (True | str)) | None
             * Function to perform addtional authentication check.
             * Function must return `True` if additional authentication is successful, otherwise must return error message
-            * Passing `None` will ignore additional authentiation check.
+            * Passing `None` will ignore additional authentication check.
+
+        getLoginUserName: ((username: str) -> str) | None
+            Optional function to decode the username entered by user to active directory login username
+
+        getInfo: ((conneciton: Connection, username: str) -> UserInfos | None) | None
+            Optional function to retrieve user information from active directory
+
         config: LoginFormConfig | None
             Optional config for login form
 
         ## Returns
-        bool
-            `False` until user authorization is completed.
-            Once completed, `True` will be returned
+        UserInfos | None
+            User information if authentication is successful.
+            otherwise, `None`
         """
         # check user authentication if it is found in streamlit session_state
-        self.user = self._getUser()
-        if self._checkUser(self.user, None, func): return True
-
-        # check user authentication if it is found in cookie
-        self.user = self._get_cookie()
-        if self._checkUser(self.user, None, func):
-            self._setUser(self.user)
-            return True
+        user = self.__getUser()
+        if self.__checkReauthentication(user, additionalCheck):
+            if self.cookie_configs is not None and self.cookie_configs.auto_renewal: self.__setCookie(user)
+            return user
+            
+        # check user authentication if it is found cookie in client's browser
+        user = self.__getCookie()
+        if self.__checkReauthentication(user, additionalCheck):
+            self.__setUser(user)
+            if self.cookie_configs is not None and self.cookie_configs.auto_renewal: self.__setCookie(user)
+            return user
 
         # ask user to log in
-        self.user = self._createLoginForm(func, config)
-        if type(self.user) is Person:
-            self._setUser(self.user)
-            self._set_cookie(self.user)
-            try: return True
-            finally: st.rerun()
-        return False
+        user = self.__createLoginForm(additionalCheck, getLoginUserName, getInfo, config)
+        if type(user) is not dict: return None
+        self.__setUser(user)
+        self.__setCookie(user)
+        try: return user
+        finally: st.rerun()
 
-
-    def createLogoutForm(self, config: Union[LogoutFormConfig, None] = None):
+    def createLogoutForm(self, config: Optional[LogoutFormConfig] = None):
         """ create the logout form
         
         ## Arguments
@@ -453,17 +343,37 @@ class Authenticate:
             Optional config for login out form
         """
         def logout():
-            self._setUser(None)
-            self._delete_cookie()
-
-        if self.user is None: return
+            self.__setUser(None)
+            self.__deleteCookie()
 
         config = config if config is not None else LogoutFormConfig()
 
-        if config.show_welcome:
+        if config.message is not None:
             form = getForm('Logout', config.location)
-            form.markdown(f'Welcome {self.user.display_name}')
+            form.markdown(config.message)
             form.form_submit_button(config.sign_out.label, help=config.sign_out.help, on_click=logout, use_container_width=True)
         else:
             ctn = getContainer(config.location)
             ctn.button(config.sign_out.label, help=config.sign_out.help, on_click=logout, use_container_width=True)
+
+
+    # Default decoding of login user name and get user information from active directory
+    def getInfo(self, conn: Connection, username: str) -> Optional[UserInfos]:
+        match = RegexEmail.match(username)
+        if match is not None: return self.ldap_auth.getInfoByUserPrincipalName(conn, username)
+
+        match = RegexDomain.match(username)
+        groups = match.groups() if match is not None else None
+        name = username if groups is None else groups[1]
+        return self.ldap_auth.getInfoBySamAccountName(conn, name)
+    
+    def getLoginUserName(self, username: str) -> str:
+        match = RegexEmail.match(username)
+        if match is not None: return username
+
+        match = RegexDomain.match(username)
+        groups = match.groups() if match is not None else None
+        domain = self.ldap_auth.config.domain if groups is None else groups[0]
+        name = username if groups is None else groups[1]
+        return f"{domain}\\{name}"
+        

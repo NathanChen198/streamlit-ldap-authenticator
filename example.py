@@ -1,22 +1,47 @@
 import streamlit as st
-from streamlit_ldap_authenticator import Authenticate, LdapConfig, Cookie_Secrets, Connection, Person, LogoutFormConfig, getPersonByMail
-from typing import Union
+from streamlit_ldap_authenticator import Authenticate, Connection, LogoutFormConfig, UserInfos
+from typing import Optional
 
-def checkUserInOrganization(conn: Union[Connection, None], user: Person):
-    email = 'vbalamurugan@illumina.com'
-    if conn is None:
-        return True if user.isReportToByEmail(email) else f"You are not reported to {email}. Not Authorize to use this resource."
+# Declare the authentication object
+auth = Authenticate(
+    st.secrets['ldap'],
+    st.secrets['session_state_names'],
+    st.secrets['auth_cookie']
+)
+
+def __isReportTo(user: UserInfos, conn: Optional[Connection], email: str, max_level = 3, current_level = 1):
+    if current_level > max_level: return False
     
-    manager = getPersonByMail(conn, email)
-    if manager is None: return f"You are not reported to {email}. Not Authorize to use this resource."
-    if user.isReportTo(conn, manager): return True
-    return f"You are not reported to {manager.display_name}({manager.employee_id}). Not Authorize to use this resources"
+    manager = user['manager']
+    
+    if type(manager) is str and type(conn) is Connection:
+        manager = auth.ldap_auth.getInfoByDistinguishedName(conn, manager)
+        user['manager'] = manager
 
-authenticator = Authenticate(LdapConfig(st.secrets['ldap']['server_path'], st.secrets['ldap']['domain']),
-                     None,# st.secrets['session_state_names']['user'],
-                     Cookie_Secrets(st.secrets['auth_cookie']['key'], st.secrets['auth_cookie']['name'], st.secrets['auth_cookie']['expiry_days']))
-if authenticator.login(checkUserInOrganization):
-    st.markdown("## Testing")
+    if type(manager) is not dict: return False
+    if manager['mail'] == email: return True
+    return __isReportTo(manager, conn, email, max_level, current_level + 1)
+
+def checkUserInOrganization(conn: Optional[Connection], user: UserInfos):
+    email = 'vbalamurugan@illumina.com'
+    return True if __isReportTo(user, conn, email) else f'You are not reported to {email}. Not authorize to use this page.'
+
+def checkUserByTitle(conn: Optional[Connection], user: UserInfos):
+    title = "Engineer"
+    if user['title'].__contains__(title): return True
+    return f"You are not a {title}. Not authorize to use this page."
+
+def checkUserInList(conn: Optional[Connection], user: UserInfos):
+    allowUsers = [ "nchen1@illumina.com" ]
+    if user['userPrincipalName'] in allowUsers: return True
+    return f"You are not in the authorized list. Not allowed to use this page"
+
+# Login Process
+user = auth.login(checkUserInList)
+if user is not None:
+    auth.createLogoutForm(LogoutFormConfig(message=f"Welcome {user['displayName']}"))
+    
+    # Your page application can be written below
+    st.write("# Welcome to my App! 👋")
     st.write(st.session_state)
-    authenticator.createLogoutForm(LogoutFormConfig(show_welcome=True))
-    st.button('test')
+    st.button('Test')
