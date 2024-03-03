@@ -112,7 +112,7 @@ class Authenticate:
             The JWT cookie for passwordless reauthentication.
         """
         exp_date = datetime.utcnow() + timedelta(days=cookie_configs.expiry_days)
-        print(f"ExpiryDate: {exp_date}")
+        # print(f"ExpiryDate: {exp_date}")
         return jwt.encode({
             'user': user,
             'exp_date': exp_date.timestamp()
