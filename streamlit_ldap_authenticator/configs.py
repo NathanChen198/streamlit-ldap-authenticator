@@ -1,5 +1,5 @@
 # Author    : Nathan Chen
-# Date      : 29-Feb-2024
+# Date      : 5-Mar-2024
 
 
 
@@ -283,13 +283,16 @@ class LdapConfig(Config):
         Active Directory base search. E.g. 'dc=example,dc=com'
     attributes: List[str]
         Attribute avaliable in your organization active directory. You can reference in [ADExplorer](https://learn.microsoft.com/en-us/sysinternals/downloads/adexplorer)
+    use_ssl: bool
+        Determine whether to use basic SSL basic authentication. Default value is `True`
     """
     server_path: str
     domain: str
     search_base: str
     attributes: List[str]
+    use_ssl: bool
 
-    def __init__(self, server_path: str, domain: str, search_base: str, attributes: List[str]):
+    def __init__(self, server_path: str, domain: str, search_base: str, attributes: List[str], use_ssl: bool = True):
         """ Create an instance of `LdapConfig` object
 
         ## Arguments
@@ -306,6 +309,7 @@ class LdapConfig(Config):
         self.domain = domain
         self.search_base = search_base
         self.attributes = attributes
+        self.use_ssl = use_ssl
 
     @classmethod
     def from_dict(cls, dict: AttrDict) -> 'LdapConfig':
@@ -313,7 +317,8 @@ class LdapConfig(Config):
         domain = cls._getAttr(dict, 'domain', str)
         search_base = cls._getAttr(dict, 'search_base', str)
         attributes = cls._getAttr(dict, 'attributes', list)
-        return LdapConfig(server_path, domain, search_base, attributes)
+        use_ssl = cls._getAttrWithDefault(dict, 'use_ssl', bool, True)
+        return LdapConfig(server_path, domain, search_base, attributes, use_ssl)
 
     @classmethod
     def getInstance(cls, value: Union['LdapConfig', AttrDict]) -> 'LdapConfig':

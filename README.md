@@ -31,7 +31,7 @@ pip install streamlit-ldap-authenticator
 ## Quickstart
 ### Simple log in example
 Create a new file secrets.toml in .streamlit folder.\
-You can learn more about secrets management [streamlit documentation](https://docs.streamlit.io/streamlit-community-cloud/deploy-your-app/secrets-management).\
+You can learn more about secrets management [streamlit documentation](https://docs.streamlit.io/streamlit-community-cloud/deploy-your-app/secrets-management).
 
 Require Configuration
 * Active directory server path of your organization
@@ -46,6 +46,7 @@ server_path = "ldap://ldap.example.com"
 domain = "example"
 search_base = "dc=example,dc=com"
 attributes = ["sAMAccountName", "distinguishedName", "userPrincipalName", "displayName", "manager", "title"]
+use_ssl = true
 
 [session_state_names]
 user = "login_user"
@@ -93,6 +94,7 @@ Configuration for your organization active directory
 | domain      | str       | Your organization domain. E.g. 'Example'
 | search_base | str       | Active directory base search. E.g. 'dc=example, dc=com'
 | attributes  | List[str] | Attribute avaliable in your organization active directory. You can reference in [ADExplorer](https://learn.microsoft.com/en-us/sysinternals/downloads/adexplorer)
+| use_ssl     | bool      | Determine whether to use basic SSL basic authentication
 
 
 ### SessionStateConfig
@@ -227,6 +229,15 @@ Now run it to open the app!
 ``` terminal
 streamlit run list_login.py
 ```
+
+## Change Log
+### Version 0.0.4
+- Initial release
+### Version 0.0.5
+- default use_ssl for ldap connection to `True`
+- Added use_ssl configuration in `LdapConfig`
+
+
 
 
 

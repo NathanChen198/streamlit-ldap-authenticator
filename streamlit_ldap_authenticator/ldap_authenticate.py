@@ -1,5 +1,5 @@
 # Author    : Nathan Chen
-# Date      : 29-Feb-2024
+# Date      : 5-Mar-2024
 
 
 
@@ -57,11 +57,7 @@ class LdapAuthenticate:
             otherwise, authentication fail message
         """
 
-        # match = self.regex.match(username)
-        # domain = self.config.domain if match is None else match.groups()[0]
-        # username = username if match is None else match.groups()[1]
-
-        server = Server(self.config.server_path, use_ssl=False, get_info='ALL')
+        server = Server(self.config.server_path, use_ssl=self.config.use_ssl, get_info='ALL')
         conn = Connection(server, username, password, auto_bind=False, auto_referrals=False, raise_exceptions=False)
         try:
             conn.bind()
