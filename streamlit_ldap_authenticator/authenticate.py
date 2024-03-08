@@ -1,11 +1,10 @@
 # Author    : Nathan Chen
-# Date      : 29-Feb-2024
+# Date      : 09-Mar-2024
 
 
-import time
 import jwt
 import re
-import extra_streamlit_components as stx
+from streamlit_cookies_controller import CookieController, RemoveEmptyElementContainer
 import streamlit as st
 from datetime import datetime, timedelta
 from typing import Union, Callable, Literal, Optional
@@ -17,7 +16,6 @@ from .configs import LdapConfig, SessionStateConfig, CookieConfig, LoginFormConf
 
 RegexDomain = re.compile(r'^(.*)\\(.*)$')
 RegexEmail = re.compile(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$')
-
 
 
 class Authenticate:
@@ -36,6 +34,7 @@ class Authenticate:
     """
     session_configs: SessionStateConfig
     cookie_configs: Optional[CookieConfig]
+
 
     def __init__(self,
                  ldap_configs: Union[LdapConfig, AttrDict],
@@ -59,8 +58,7 @@ class Authenticate:
         self.ldap_auth = LdapAuthenticate(ldap_configs)
 
         if cookie_configs is not None:
-            self.cookie_manager = stx.CookieManager()
-            time.sleep(0.1)
+            self.cookie_manager = CookieController()
 
 
     # streamlit session_state variables
@@ -162,7 +160,6 @@ class Authenticate:
         if self.cookie_configs is None: return None
 
         token = self.cookie_manager.get(self.cookie_configs.name)
-        time.sleep(0.1)
         return self.__tokenDecode(self.cookie_configs, token)
 
     def __setCookie(self, user: Optional[UserInfos]):
@@ -181,8 +178,7 @@ class Authenticate:
 
         token = self.__tokenEncode(self.cookie_configs, user)
         exp_date = datetime.now() + timedelta(days=self.cookie_configs.expiry_days)
-        self.cookie_manager.set(self.cookie_configs.name, token, expires_at=exp_date)
-        time.sleep(0.1)
+        self.cookie_manager.set(self.cookie_configs.name, token, expires=exp_date)
 
     def __deleteCookie(self):
         """ Delete the cookie in the client's browser
@@ -190,9 +186,9 @@ class Authenticate:
         """
         if self.cookie_configs is None: return
 
-        if self.cookie_configs.name in self.cookie_manager.cookies:
-            self.cookie_manager.delete(self.cookie_configs.name)
-        time.sleep(0.1)
+        cookies = self.cookie_manager.getAll()
+        if self.cookie_configs.name in cookies:
+            self.cookie_manager.remove(self.cookie_configs.name)
 
 
 

@@ -1,16 +1,16 @@
 # Author   : Nathan Chen
-# Date     : 23-Feb-2024
+# Date     : 9-Mar-2024
 
 
 from pathlib import Path
 from setuptools import setup, find_packages
 
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text()
+long_description = (this_directory / "README.md").read_text(encoding='UTF-8')
 
 setup(
     name='streamlit-ldap-authenticator',
-    version='0.0.5',
+    version='0.0.6',
     author='Nathan Chen',
     author_email='nathan.chen.198@gmail.com',
     description='Authenticate using ldap',
@@ -31,7 +31,7 @@ setup(
         # them here.
         "streamlit >= 0.63",
         "ldap3 >= 2.9.1",
-        "extra-streamlit-components >= 0.1.70",
+        "streamlit-cookies-controller >= 0.0.2",
         "pyjwt >= 2.8.0"
     ],
     extras_require={

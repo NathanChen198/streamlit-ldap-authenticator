@@ -1,6 +1,7 @@
 # Welcome to Streamlit LDAP Authenticator 🔑
 
 [![PyPI][pypi_badge]][pypi_link]
+[![Download][pypi_download_badge]][pypi_link]
 [![GitHub][github_badge]][github_link]
 [![GitHub license][license_badge]][license_link]
 [![GitHub issues][issue_badge]][issue_link]
@@ -236,13 +237,16 @@ streamlit run list_login.py
 ### Version 0.0.5
 - default use_ssl for ldap connection to `True`
 - Added use_ssl configuration in `LdapConfig`
+### Version 0.0.6
+- fix page application not working when auto renewal for cookie config is configured.
 
 
 
 
 
 [pypi_badge]: https://img.shields.io/pypi/v/streamlit-ldap-authenticator.svg
-[pypi_link]: https://pypi.org/project/streamlit-ldap-authenticator/
+[pypi_link]: https://pypi.org/project/streamlit-ldap-authenticator
+[pypi_download_badge]: https://static.pepy.tech/badge/streamlit-ldap-authenticator
 [github_badge]: https://badgen.net/badge/icon/GitHub?icon=github&color=black&label
 [github_link]: https://github.com/NathanChen198/streamlit-ldap-authenticator
 [license_badge]: https://img.shields.io/badge/Licence-MIT-gr.svg
