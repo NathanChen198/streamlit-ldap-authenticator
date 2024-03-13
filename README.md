@@ -62,7 +62,7 @@ auto_renewal = true
 Create a new file simple_login.py with the following code:
 ``` python
 import streamlit as st
-from streamlit_ldap_authenticator import Authenticate, LogoutFormConfig
+from streamlit_ldap_authenticator import Authenticate
 
 # Declare the authentication object
 auth = Authenticate(
@@ -74,7 +74,7 @@ auth = Authenticate(
 # Login Process
 user = auth.login()
 if user is not None:  
-    auth.createLogoutForm(LogoutFormConfig(message=f"Welcome {user['displayName']}"))
+    auth.createLogoutForm({'message': f"Welcome {user['displayName']}"})
     
     # Your page application can be written below  
     st.write("# Welcome to my App! 👋")
@@ -83,6 +83,54 @@ if user is not None:
 Run the streamlit app!
 ``` terminal
 streamlit run simple_login.py
+```
+
+## Add Encryption module
+This is recommended if you are using http protocol as http protocol doesn't encrypt when exchanging information between server and client. So anyone in the network can see the user password if it is not encrypted.
+
+### Gnerate RSA Key Pair
+Create a new file generateKeys.py
+
+``` python
+from streamlit_rsa_auth_ui import Encryptor
+
+encryptor = Encryptor.generateNew(2048)
+encryptor.save('rsa', 'authkey')
+```
+
+Run `generateKeys.py` python script
+``` terminal
+python generateKeys.py
+```
+
+this will create a private key and public key pair
+- private key with the file name `authkey`
+- public key with the file name `authkey.pub`
+
+``` md
+├── rsa
+│   ├── authkey
+│   │   authkey.pub
+```
+
+### Add Configuration
+add to the secrets.toml
+``` ini
+[encryptor]
+folderPath = "rsa"
+keyName = "authkey"
+```
+
+### Change the authentication declaration code
+
+``` python
+# Declare the authentication object
+auth = Authenticate(
+    st.secrets['ldap'],
+    st.secrets['session_state_names'],
+    st.secrets['auth_cookie'],
+    st.secrets['encryptor']
+)
 ```
 
 
@@ -116,13 +164,20 @@ Configuration to store user information to the cookie in client's browser. Thus 
 | auto_renewal | bool  | Cookie will expire after defined days from the **last activity** when value is `True`. Cookie will expire after defined days from the **last login** when value is `False`.
 
 
+### EncryptorConfig
+Configuration for encryption key location to encrypt user information at the client browser before send back to server.
+| Name       | Type | Description
+| ---------- | ---- | -----------
+| folderPath | str  | Folder location where the encryption key is stored. (Make sure the key location is private)
+| keyName    | str  | The name of the key
+
 
 ## More Examples
 ### Addtional check with job title after ldap authentication completed
 Create a new file title_login.py with the following code:
 ``` python
 import streamlit as st
-from streamlit_ldap_authenticator import Authenticate, Connection, LogoutFormConfig, UserInfos
+from streamlit_ldap_authenticator import Authenticate, Connection, UserInfos
 from typing import Optional
 
 # Declare the authentication object
@@ -140,7 +195,7 @@ def checkUserByTitle(conn: Optional[Connection], user: UserInfos):
 # Login Process
 user = auth.login(checkUserByTitle)
 if user is not None:
-    auth.createLogoutForm(LogoutFormConfig(message=f"Welcome {user['displayName']}"))
+    auth.createLogoutForm({'message':f"Welcome {user['displayName']}"})
     
     # Your page application can be written below
     st.write("# Welcome to my App! 👋")
@@ -156,7 +211,7 @@ streamlit run title_login.py
 Create a new file report_login.py with the following code:
 ``` python
 import streamlit as st
-from streamlit_ldap_authenticator import Authenticate, Connection, LogoutFormConfig, UserInfos
+from streamlit_ldap_authenticator import Authenticate, Connection, UserInfos
 from typing import Optional
 
 # Declare the authentication object
@@ -186,7 +241,7 @@ def checkUserInOrganization(conn: Optional[Connection], user: UserInfos):
 # Login Process
 user = auth.login(checkUserInOrganization)
 if user is not None:
-    auth.createLogoutForm(LogoutFormConfig(message=f"Welcome {user['displayName']}"))
+    auth.createLogoutForm({'message':f"Welcome {user['displayName']}"})
     
     # Your page application can be written below
     st.write("# Welcome to my App! 👋")
@@ -202,7 +257,7 @@ streamlit run report_login.py
 Create a new file list_login.py with the following code:
 ``` python
 import streamlit as st
-from streamlit_ldap_authenticator import Authenticate, Connection, LogoutFormConfig, UserInfos
+from streamlit_ldap_authenticator import Authenticate, Connection, UserInfos
 from typing import Optional
 
 # Declare the authentication object
@@ -220,7 +275,7 @@ def checkUserInList(conn: Optional[Connection], user: UserInfos):
 # Login Process
 user = auth.login(checkUserInList)
 if user is not None:
-    auth.createLogoutForm(LogoutFormConfig(message=f"Welcome {user['displayName']}"))
+    auth.createLogoutForm({'message':f"Welcome {user['displayName']}"})
     
     # Your page application can be written below
     st.write("# Welcome to my App! 👋")
@@ -239,6 +294,12 @@ streamlit run list_login.py
 - Added use_ssl configuration in `LdapConfig`
 ### Version 0.0.6
 - fix page application not working when auto renewal for cookie config is configured.
+### Version 0.1.0
+- Add encryption module
+- Change user interface
+- More customizable form config
+- Remove LoginFormConfig and LogoutFormConfig
+
 
 
 

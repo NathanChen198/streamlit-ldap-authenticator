@@ -1,5 +1,5 @@
 # Author    : Nathan Chen
-# Date      : 5-Mar-2024
+# Date      : 13-Mar-2024
 
 
 
@@ -176,75 +176,6 @@ class ButtonConfig(InputConfig):
         """
         super().__init__(label, help)
 
-class LoginFormConfig:
-    """ Config for Login form
-    
-    ## Properties
-    location: 'main' | 'sidebar'
-        location of login form to render
-    title: str | None
-        form title. None will not show the title
-    username: TextInputConfig
-        Config for username input
-    password: TextInputConfig
-        Config for password input
-    sign_in: ButtonConfig
-        Config for sign-in button
-    remember_me: CheckboxConfig
-        Config for remember me checkbox
-    error_icon: str
-        Icon for error message
-    """
-    location: FormLocation
-    title: Optional[str]
-    username: TextInputConfig
-    password: TextInputConfig
-    sign_in: ButtonConfig
-    remember_me: CheckboxConfig
-    error_icon: Optional[str]
-    
-    def __init__(self,
-                 location: FormLocation = 'main',
-                 title: Optional[str] = 'User Log In',
-                 username: Optional[TextInputConfig] = None,
-                 password: Optional[TextInputConfig] = None,
-                 sign_in: Optional[ButtonConfig] = None,
-                 remember_me: Optional[CheckboxConfig] = None,
-                 error_icon: Optional[str] = '❌'):
-        self.location = location
-        self.title = title
-        self.username = username if username is not None else TextInputConfig('User Name', placeholder='Your nt login username')
-        self.password = password if password is not None else TextInputConfig('Password', placeholder='Your nt login password')
-        self.sign_in = sign_in if sign_in is not None else ButtonConfig('🔑 Sign In')
-        self.remember_me = remember_me if remember_me is not None else CheckboxConfig('Remember me')
-        self.error_icon = error_icon
-
-class LogoutFormConfig:
-    """ Config for logout form
-
-    ## Properties
-    location: 'main' | 'sidebar'
-        location of login form to render
-    message: str
-        Message to display at logout form
-    sign_out: ButtonConfig
-        Config for sign-out button
-    """
-    location: FormLocation
-    message: Optional[str]
-    sign_out: ButtonConfig
-
-    def __init__(self,
-                 location: FormLocation = 'sidebar',
-                 message: Optional[str] = None,
-                 sign_out: Optional[ButtonConfig] = None) -> None:
-        """ Create an instance of `LogoutFormConfig` object
-        """
-        self.location = location
-        self.message = message
-        self.sign_out = sign_out if sign_out is not None else ButtonConfig('🔐 Sign Out')
-
-
 
 
 
@@ -339,22 +270,27 @@ class SessionStateConfig(Config):
 
     __default_user__ = "login_user"
     __default_remember_me__ = "login_remember_me"
+    __default_auth_result__ = "login_result"
 
     user: str
     remember_me: str
+    auth_result: str
 
     def __init__(self,
                  user: str = __default_user__,
-                 remember_me: str = __default_remember_me__):
+                 remember_me: str = __default_remember_me__,
+                 auth_result: str = __default_auth_result__):
         self.user = user
         self.remember_me = remember_me
+        self.auth_result = auth_result
 
     @classmethod
     def from_dict(cls, dict: AttrDict) -> 'SessionStateConfig':
         user = cls._getAttrWithDefault(dict, 'user', str, cls.__default_user__)
         remember_me = cls._getAttrWithDefault(dict, 'remember_me', str, cls.__default_remember_me__)
+        auth_result = cls._getAttrWithDefault(dict, 'auth_result', str, cls.__default_auth_result__)
 
-        return SessionStateConfig(user, remember_me)
+        return SessionStateConfig(user, remember_me, auth_result)
 
     @classmethod
     def getInstance(cls, value: Union['SessionStateConfig', AttrDict, None]) -> 'SessionStateConfig':
@@ -405,5 +341,33 @@ class CookieConfig(Config):
     @classmethod
     def getInstance(cls, value: Union['CookieConfig', AttrDict, None]) -> Optional['CookieConfig']:
         if type(value) is CookieConfig: return value
+        if type(value) is dict or type(value) is _AttrDict: return cls.from_dict(value)
+        return None
+
+class EncryptorConfig(Config):
+    """ Encryption key to encode and decode information between client and server
+
+    ## Properties
+    folderPath: str
+        Location of the folder where both private key and public key is located
+    keyName: str
+        The name of the key
+    """
+    folderPath: str
+    keyName: str
+
+    def __init__(self, folderPath: str, keyName: str) -> None:
+        self.folderPath = folderPath
+        self.keyName = keyName
+
+    @classmethod
+    def from_dict(cls, dict: AttrDict) -> 'EncryptorConfig':
+        folderPath = cls._getAttr(dict, 'folderPath', str)
+        keyName = cls._getAttr(dict, 'keyName', str)
+        return EncryptorConfig(folderPath, keyName)
+    
+    @classmethod
+    def getInstance(cls, value: Union['EncryptorConfig', AttrDict, None]) -> Optional['EncryptorConfig']:
+        if type(value) is EncryptorConfig: return value
         if type(value) is dict or type(value) is _AttrDict: return cls.from_dict(value)
         return None

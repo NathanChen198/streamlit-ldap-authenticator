@@ -1,17 +1,22 @@
 # Author    : Nathan Chen
-# Date      : 09-Mar-2024
+# Date      : 13-Mar-2024
 
 
+import time
+import json
+import rsa
 import jwt
 import re
-from streamlit_cookies_controller import CookieController, RemoveEmptyElementContainer
 import streamlit as st
+from streamlit_cookies_controller import CookieController
+from streamlit_rsa_auth_ui import Encryptor, SigninEvent, SignoutEvent, Object, signinForm, signoutForm, getEvent
 from datetime import datetime, timedelta
-from typing import Union, Callable, Literal, Optional
+from typing import Union, Callable, Literal, Optional, Dict
 from .ldap_authenticate import Connection, LdapAuthenticate
 from .exceptions import CookieError
-from .configs import LdapConfig, SessionStateConfig, CookieConfig, LoginFormConfig, LogoutFormConfig, AttrDict, UserInfos, getForm, getContainer
+from .configs import LdapConfig, SessionStateConfig, CookieConfig, EncryptorConfig, FormLocation, AttrDict, UserInfos, getForm, getContainer
 
+ss = st.session_state
 
 
 RegexDomain = re.compile(r'^(.*)\\(.*)$')
@@ -32,6 +37,7 @@ class Authenticate:
         Optional configuration to encode user information to cookie in the client's browser.
         Reauthorization using cookie in the client's browser feature will be disabled when `None`.
     """
+    
     session_configs: SessionStateConfig
     cookie_configs: Optional[CookieConfig]
 
@@ -39,7 +45,8 @@ class Authenticate:
     def __init__(self,
                  ldap_configs: Union[LdapConfig, AttrDict],
                  session_configs: Union[SessionStateConfig, AttrDict, None] = None,
-                 cookie_configs: Union[CookieConfig, AttrDict, None] = None):
+                 cookie_configs: Union[CookieConfig, AttrDict, None] = None,
+                 encryptor_configs: Union[EncryptorConfig, AttrDict, None] = None):
         """ Create a new instance of `Authenticate`
 
         ## Arguments
@@ -59,6 +66,9 @@ class Authenticate:
 
         if cookie_configs is not None:
             self.cookie_manager = CookieController()
+        
+        encryptor_configs = EncryptorConfig.getInstance(encryptor_configs)
+        self.encryptor = Encryptor.load(encryptor_configs.folderPath, encryptor_configs.keyName) if encryptor_configs is not None else None
 
 
     # streamlit session_state variables
@@ -192,74 +202,85 @@ class Authenticate:
 
 
 
+    def __getLoginConfig(self, config: Optional[Object] = None):
+        if config is None: config = {}
+        if self.cookie_configs is not None and 'remember' not in config:
+            config['remember'] = {}
+        
+        busy_message = config.get("busy_message")
+        config.pop('busy_message', "")
+        if type(busy_message) is not str: busy_message = "Logging in..."
+
+        error_icon = config.get("error_icon", None)
+        config.pop('error_icon', "")
+        if type(error_icon) is not str: error_icon = None
+
+        _location = config.get("location")
+        location: FormLocation = 'main' if _location != 'sidebar' else 'sidebar'
+        return (config, busy_message, error_icon, location)
+
     def __createLoginForm(self,
                           additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None,
                           getLoginUserName: Optional[Callable[[str], str]] = None,
                           getInfo: Optional[Callable[[Connection, str], Optional[UserInfos]]] = None,
-                          config: Optional[LoginFormConfig] = None):
-        """ create the login form
-        
-        ## Arguments
-        additionalCheck: ((connection: Connection | None, user: UserInfos) -> (True | str)) | None
-            * Function to perform addtional authentication check.
-            * Function must return `True` if additional authentication is successful, otherwise must return error message
-            * Passing `None` will ignore additional authentication check.
-
-        getLoginUserName: ((username: str) -> str) | None
-            Optional function to decode the username entered by user to active directory login username
-
-        getInfo: ((conneciton: Connection, username: str) -> UserInfos | None) | None
-            Optional function to retrieve user information from active directory
-
-        config: LoginFormConfig | None
-            Optional config for login in form
-        """
-        config = config if config is not None else LoginFormConfig()
+                          config: Optional[Object] = None,):
         getInfo = getInfo if getInfo is not None else self.getInfo
         getLoginUserName = getLoginUserName if getLoginUserName is not None else self.getLoginUserName
+        default = {'remember': self.__getRememberMe()} if self.cookie_configs is not None else None
+        (config, busy_message, error_icon, location) = self.__getLoginConfig(config)
+
+        # Create form
+        publickey = self.encryptor.publicKeyPem if self.encryptor is not None else None
+        result = signinForm(publickey, default, config)
+        if result is None: return None
         
-        form = getForm('Login', config.location)
+        # Check if the result is the same as previous result
+        if self.encryptor is not None and type(result) is str: #If it is encrypted
+            if self.session_configs.auth_result in ss and ss[self.session_configs.auth_result] == result: return None
+            ss[self.session_configs.auth_result] = result
+            result = self.encryptor.decrypt(result)
+        elif self.encryptor is None and type(result) is dict: #If it is not encrypted
+            _json = json.dumps(result)
+            if self.session_configs.auth_result in ss and ss[self.session_configs.auth_result] == _json: return None
+            ss[self.session_configs.auth_result] = _json
+        else: result = None
 
-        if config.title is not None: form.subheader(config.title)
-        username = form.text_input(config.username.label,
-                                   placeholder=config.username.placeholder,
-                                   help=config.username.help,
-                                   label_visibility=config.username.label_visibility)
+        event = getEvent(result)
+        if type(event) is not SigninEvent: return None
 
-        password = form.text_input(config.password.label,
-                                   type='password',
-                                   placeholder=config.password.placeholder,
-                                   help=config.password.help,
-                                   label_visibility=config.password.label_visibility)
-        
-        if self.cookie_configs is not None:
-            btnCtn, chkCtn, statusCtn = form.columns([1, 2, 3])
-            remember_me = self.__getRememberMe()
-            remember_me = chkCtn.checkbox(config.remember_me.label, remember_me,
-                            help=config.remember_me.help,
-                            label_visibility=config.remember_me.label_visibility)
-            self.__setRememberMe(remember_me)
-        else:
-            btnCtn, statusCtn = form.columns([1, 3])
-            self.__setRememberMe(False)
+        self.__setRememberMe(event.remember)
 
-        submit = btnCtn.form_submit_button(config.sign_in.label, config.sign_in.help)
-        if submit:
-            with statusCtn:
-                with st.spinner("Logging in..."):
+        if location == 'sidebar':
+            with st.sidebar:
+                with st.spinner(busy_message):
+                    username = event.username
                     login_name = getLoginUserName(username)
-                    result = self.ldap_auth.login(login_name, password, lambda conn: getInfo(conn, username), additionalCheck)
-
-                    if type(result) is str:
-                        statusCtn.error(result, icon=config.error_icon)
+                    result = self.ldap_auth.login(login_name, event.password, lambda conn: getInfo(conn, username), additionalCheck)
+                    
+                    if type(result) is str: # If it is error message
+                        st.error(result, icon=error_icon)
                     elif type(result) is dict:
+                        del ss[self.session_configs.auth_result]
                         return result
                     else:
-                        statusCtn.error(f'Unexpected Return: {result}', icon=config.error_icon)
-    
+                        st.error(f'Unexpected Return: {result}', icon=error_icon)
+        else:
+            with st.spinner(busy_message):
+                username = event.username
+                login_name = getLoginUserName(username)
+                result = self.ldap_auth.login(login_name, event.password, lambda conn: getInfo(conn, username), additionalCheck)
+                
+                if type(result) is str: # If it is error message
+                    st.error(result, icon=error_icon)
+                elif type(result) is dict:
+                    del ss[self.session_configs.auth_result]
+                    return result
+                else:
+                    st.error(f'Unexpected Return: {result}', icon=error_icon)
+
     def __checkReauthentication(self,
                    user: Optional[UserInfos],
-                   additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None) -> bool:
+                   additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None):
         """ Check user information during reauthorization
 
         ## Arguments
@@ -279,15 +300,18 @@ class Authenticate:
             * `str` error message when authentication fail.
         """
         if type(user) is not dict: return False
-        if additionalCheck is None: return True
+        if additionalCheck is None: return True # No additional check is required
         result = additionalCheck(None, user)
-        return result == True
+        if result != True: return False
+
+        if self.cookie_configs is not None and self.cookie_configs.auto_renewal: self.__setCookie(user)
+        return True
 
     def login(self,
               additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None,
               getLoginUserName: Optional[Callable[[str], str]] = None,
               getInfo: Optional[Callable[[Connection, str], Optional[UserInfos]]] = None,
-              config: Optional[LoginFormConfig] = None) -> Optional[UserInfos]:
+              config: Optional[Object] = None) -> Optional[UserInfos]:
         """ Authentication using ldap. Reauthorize if it is valid and create login form if authorization fail.
 
         ## Arguments
@@ -313,14 +337,12 @@ class Authenticate:
         # check user authentication if it is found in streamlit session_state
         user = self.__getUser()
         if self.__checkReauthentication(user, additionalCheck):
-            if self.cookie_configs is not None and self.cookie_configs.auto_renewal: self.__setCookie(user)
             return user
             
         # check user authentication if it is found cookie in client's browser
         user = self.__getCookie()
         if self.__checkReauthentication(user, additionalCheck):
             self.__setUser(user)
-            if self.cookie_configs is not None and self.cookie_configs.auto_renewal: self.__setCookie(user)
             return user
 
         # ask user to log in
@@ -331,26 +353,45 @@ class Authenticate:
         try: return user
         finally: st.rerun()
 
-    def createLogoutForm(self, config: Optional[LogoutFormConfig] = None):
-        """ create the logout form
-        
-        ## Arguments
-        config: LoginFormConfig | None
-            Optional config for login out form
-        """
-        def logout():
-            self.__setUser(None)
-            self.__deleteCookie()
 
-        config = config if config is not None else LogoutFormConfig()
+    def __getLogoutConfig(self, config: Optional[Object] = None):
+        if config is None: config = {}
 
-        if config.message is not None:
-            form = getForm('Logout', config.location)
-            form.markdown(config.message)
-            form.form_submit_button(config.sign_out.label, help=config.sign_out.help, on_click=logout, use_container_width=True)
+        # For backward compatibility
+        if 'title' not in config and 'message' in config:
+            message = config['message']
+            config.pop('message', '')
+            if type(message) is str:
+                config['title'] = { 'text': message }
+
+        _location = config.get("location")
+        location: FormLocation = 'sidebar' if _location != 'main' else 'main'
+        return (config, location)
+
+    def createLogoutForm(self, config: Optional[Object]) -> None:
+        (config, location) = self.__getLogoutConfig(config)
+
+        # Create form
+        publickey = self.encryptor.publicKeyPem if self.encryptor is not None else None
+        result = signoutForm(publickey, configs=config)
+        if result is None: return None
+
+        if self.encryptor is not None and type(result) is str: result = self.encryptor.decrypt(result)
+
+        event = getEvent(result)
+        if type(event) is not SignoutEvent: return None
+
+        self.__setUser(None)
+        self.__deleteCookie()
+        # give sometime for the browser cookie to get deleted
+        if location == 'sidebar':
+            with st.sidebar:
+                with st.spinner():
+                    time.sleep(0.1)
         else:
-            ctn = getContainer(config.location)
-            ctn.button(config.sign_out.label, help=config.sign_out.help, on_click=logout, use_container_width=True)
+            with st.spinner():
+                time.sleep(0.1)
+        st.rerun()
 
 
     # Default decoding of login user name and get user information from active directory
