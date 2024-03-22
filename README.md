@@ -299,6 +299,8 @@ streamlit run list_login.py
 - Change user interface
 - More customizable form config
 - Remove LoginFormConfig and LogoutFormConfig
+### Version 0.1.1
+- Add pyjwt in the install requirement
 
 
 

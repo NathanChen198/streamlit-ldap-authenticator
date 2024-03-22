@@ -10,7 +10,7 @@ long_description = (this_directory / "README.md").read_text(encoding='UTF-8')
 
 setup(
     name='streamlit-ldap-authenticator',
-    version='0.1.0',
+    version='0.1.1',
     author='Nathan Chen',
     author_email='nathan.chen.198@gmail.com',
     description='Authenticate using ldap',
@@ -31,6 +31,7 @@ setup(
         # them here.
         "streamlit >= 0.63",
         "ldap3 >= 2.9.1",
+        "pyjwt>=2.8.0",
         "streamlit-cookies-controller >= 0.0.3",
         "streamlit-rsa-auth-ui >= 0.0.3"
     ],
