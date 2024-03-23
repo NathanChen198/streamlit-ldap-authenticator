@@ -4,5 +4,5 @@
 
 from .ldap_authenticate import Connection, LdapAuthenticate
 from .authenticate import Authenticate, RegexEmail, RegexDomain
-from .configs import LdapConfig, SessionStateConfig, CookieConfig, TextInputConfig, ButtonConfig, CheckboxConfig, UserInfos
+from .configs import LdapConfig, SessionStateConfig, CookieConfig, UserInfos
 
