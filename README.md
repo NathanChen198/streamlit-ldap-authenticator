@@ -172,6 +172,59 @@ Configuration for encryption key location to encrypt user information at the cli
 | keyName    | str  | The name of the key
 
 
+## Callback Extension
+Addtional task can be executed upon successful login or logout\
+Login Process is as follow
+- Reauthenticate from Session state, if unsuccessful
+- Reauthenticate form cookie, if unsuccessful
+- Ask user input
+- Login to Active Directory
+- Execute `additionalCheck` argument function
+- Execute `callback` argument function
+- Save user info in Session state
+- Save encrypted user info in cookie
+
+Logout Process is as follow
+When user click `Sign out` button
+- Execute `callback` argument function. If `'cancel'` is return, will not continue
+- Delete user info from Session state
+- Delete encrypted user info in cookie
+
+
+Create a new file simple_login_callback.py with the following code:
+``` Python
+import streamlit as st
+from streamlit_rsa_auth_ui import SignoutEvent
+from streamlit_ldap_authenticator import Authenticate, UserInfos
+from typing import Optional, Union, Literal
+
+# Declare the authentication object
+auth = Authenticate(
+    st.secrets['ldap'],
+    st.secrets['session_state_names'],
+    st.secrets['auth_cookie']
+)
+
+def login(user: Union[UserInfos, str]) -> Optional[str]:
+    st.session_state.TestSs = {"login_successful": True}
+
+def logout(event: SignoutEvent) -> Optional[Literal['cancel']]:
+    if 'TestSs' in st.session_state:
+        del st.session_state.TestSs
+    if 'TestSs' in st.session_state:
+        return 'cancel'
+
+# Login Process
+user = auth.login()
+if user is not None:  
+    auth.createLogoutForm({'message': f"Welcome {user['displayName']}"})
+    
+    # Your page application can be written below  
+    st.write("# Welcome to my App! 👋")
+    st.write(user)
+```
+
+
 ## More Examples
 ### Addtional check with job title after ldap authentication completed
 Create a new file title_login.py with the following code:
@@ -301,6 +354,8 @@ streamlit run list_login.py
 - Remove LoginFormConfig and LogoutFormConfig
 ### Version 0.1.1
 - Add pyjwt in the install requirement
+### Version 0.2.0
+- Add callback argument in login and logout
 
 
 

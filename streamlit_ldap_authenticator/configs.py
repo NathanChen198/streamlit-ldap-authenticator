@@ -1,15 +1,71 @@
 # Author    : Nathan Chen
-# Date      : 13-Mar-2024
+# Date      : 23-Mar-2024
 
 
 
 
 
-import streamlit as st
-from streamlit.type_util import LabelVisibility
 from streamlit.runtime.secrets import AttrDict as _AttrDict
-from typing import Type, Literal, Optional, Union, TypeVar, List, Dict, Any
+from streamlit_rsa_auth_ui import SigninFormConfig, SignoutFormConfig, FormType, HorizontalAlign, Object
+from typing import Type, Optional, Union, TypeVar, List, Dict, Any
 
+from streamlit_rsa_auth_ui.configs import ButtonConfig, CheckboxConfig, IconConfig, TextInputConfig, TitleConfig
+
+
+class LoginConfig(SigninFormConfig):
+    busy_message: str
+    error_icon: Optional[str]
+    def __init__(self,
+            busy_message: str = 'Logging in...',
+            error_icon: Optional[str] = None,
+            formType: Optional[FormType] = None,
+            labelSpan: Optional[int] = None,
+            wrapperSpan: Optional[int] = None,
+            maxWidth: Optional[int] = None,
+            align: Optional[HorizontalAlign] = None,
+            title: Union[TitleConfig, str, Object, None] = None,
+            cancel: Union[IconConfig, Object, None] = None,
+            submit: Union[ButtonConfig, str, Object, None] = None,
+            username: Union[TextInputConfig, str, Object, None] = None,
+            password: Union[TextInputConfig, str, Object, None] = None,
+            remember: Union[CheckboxConfig, str, Object, None] = None,
+            forgot: Union[ButtonConfig, str, Object, None] = None,
+            args: Optional[Object] = None,) -> None:
+        super().__init__(formType, labelSpan, wrapperSpan, maxWidth, align, title, cancel, submit, username, password, remember, forgot, args)
+        self.busy_message = busy_message
+        self.error_icon = error_icon
+
+    def toDict(self) -> Object:
+        config = super().toDict()
+        config['busy_message'] = self.busy_message
+        if self.error_icon is not None: config['error_icon'] = self.error_icon
+        return config
+
+class LogoutConfig(SignoutFormConfig):
+    busy_message: str
+    sleep_sec: float
+
+    def __init__(self,
+            busy_message: str = 'Logging out...',
+            sleep_sec: float = 1.0,
+            formType: Optional[FormType] = None,
+            labelSpan: Optional[int] = None,
+            wrapperSpan: Optional[int] = None,
+            maxWidth: Optional[int] = None,
+            align: Optional[HorizontalAlign] = None,
+            title: Union[str, TitleConfig, Object, None] = None,
+            cancel: Union[IconConfig, Object, None] = None,
+            submit: Union[str, ButtonConfig, Object, None] = None,
+            args: Optional[Object] = None,) -> None:
+        super().__init__(formType, labelSpan, wrapperSpan, maxWidth, align, title, cancel, submit, args)
+        self.busy_message = busy_message
+        self.sleep_sec = sleep_sec
+
+    def toDict(self) -> Object:
+        config = super().toDict()
+        config['busy_message'] = self.busy_message
+        config['sleep_sec'] = self.sleep_sec
+        return config
 
 # Application Config
 UserInfoValue = Union[List[str], str, None]

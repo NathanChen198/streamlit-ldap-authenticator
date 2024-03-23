@@ -3,18 +3,16 @@
 
 
 import time
-import json
-import rsa
 import jwt
 import re
 import streamlit as st
 from streamlit_cookies_controller import CookieController
-from streamlit_rsa_auth_ui import Encryptor, SigninEvent, SignoutEvent, SigninFormConfig, SignoutFormConfig, Object, authUI, getEvent
+from streamlit_rsa_auth_ui import Encryptor, SigninEvent, SignoutEvent, Object, authUI, getEvent
 from datetime import datetime, timedelta
 from typing import Union, Callable, Literal, Optional
 from .ldap_authenticate import Connection, LdapAuthenticate
 from .exceptions import CookieError
-from .configs import LdapConfig, SessionStateConfig, CookieConfig, EncryptorConfig, AttrDict, UserInfos
+from .configs import LdapConfig, SessionStateConfig, CookieConfig, EncryptorConfig, LoginConfig, LogoutConfig, AttrDict, UserInfos
 
 ss = st.session_state
 
@@ -202,9 +200,9 @@ class Authenticate:
         if self.cookie_configs.name in cookies:
             self.cookie_manager.remove(self.cookie_configs.name)
 
-    def __getLoginConfig(self, config: Union[Object, SigninFormConfig, None] = None):
+    def __getLoginConfig(self, config: Union[Object, LoginConfig, None] = None):
         config = config if type(config) is dict else \
-            config.toDict() if isinstance(config, SigninFormConfig) else \
+            config.toDict() if isinstance(config, LoginConfig) else \
             {}
         
         if self.cookie_configs is not None and 'remember' not in config:
@@ -224,7 +222,7 @@ class Authenticate:
                           additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None,
                           getLoginUserName: Optional[Callable[[str], str]] = None,
                           getInfo: Optional[Callable[[Connection, str], Optional[UserInfos]]] = None,
-                          config: Union[Object, SigninFormConfig, None] = None,
+                          config: Union[Object, LoginConfig, None] = None,
                           callback: Optional[Callable[[Union[UserInfos, str]], Optional[str]]] = None):
         getInfo = getInfo if getInfo is not None else self.getInfo
         getLoginUserName = getLoginUserName if getLoginUserName is not None else self.getLoginUserName
@@ -290,8 +288,8 @@ class Authenticate:
               additionalCheck: Optional[Callable[[Optional[Connection], UserInfos], Union[Literal[True], str]]] = None,
               getLoginUserName: Optional[Callable[[str], str]] = None,
               getInfo: Optional[Callable[[Connection, str], Optional[UserInfos]]] = None,
-              config: Union[Object, SigninFormConfig, None] = None,
-              callback: Optional[Callable[[SigninEvent], None]] = None) -> Optional[UserInfos]:
+              config: Union[Object, LoginConfig, None] = None,
+              callback: Optional[Callable[[Union[UserInfos, str]], Optional[str]]] = None) -> Optional[UserInfos]:
         """ Authentication using ldap. Reauthorize if it is valid and create login form if authorization fail.
 
         ## Arguments
@@ -306,8 +304,14 @@ class Authenticate:
         getInfo: ((conneciton: Connection, username: str) -> UserInfos | None) | None
             Optional function to retrieve user information from active directory
 
-        config: LoginFormConfig | None
+        config: Object | LoginConfig | None
             Optional config for login form
+
+        callback: ((user: UserInfos | str) -> str | None) | None
+            Optional callback function.
+            - Return error message as string will halt login process
+            - Return `None` will continue login process.
+            
 
         ## Returns
         UserInfos | None
@@ -326,7 +330,7 @@ class Authenticate:
             return user
 
         # ask user to log in
-        user = self.__createLoginForm(additionalCheck, getLoginUserName, getInfo, config)
+        user = self.__createLoginForm(additionalCheck, getLoginUserName, getInfo, config, callback)
         if type(user) is not dict: return None
         self.__setUser(user)
         self.__setCookie(user)
@@ -334,9 +338,9 @@ class Authenticate:
         finally: st.rerun()
 
 
-    def __getLogoutConfig(self, config: Union[Object, SignoutFormConfig, None] = None):
+    def __getLogoutConfig(self, config: Union[Object, LogoutConfig, None] = None):
         config = config if type(config) is dict else \
-            config.toDict() if isinstance(config, SigninFormConfig) else \
+            config.toDict() if isinstance(config, LogoutConfig) else \
             {}
 
         # For backward compatibility
@@ -350,14 +354,23 @@ class Authenticate:
         config.pop('busy_message', "")
         if type(busy_message) is not str: busy_message = "Logging out..."
 
-        return (config, busy_message)
+        sleep_sec = config.get("sleep_sec")
+        config.pop('sleep_sec', "")
+        if type(sleep_sec) is not float: sleep_sec = 1.0
 
-    def createLogoutForm(self, config: Optional[Object] = None, callback: Optional[Callable[[SignoutEvent], Optional[Literal['cancel']]]] = None) -> None:
+        return (config, busy_message, sleep_sec)
+
+    def createLogoutForm(self, config: Union[Object, LogoutConfig, None] = None, callback: Optional[Callable[[SignoutEvent], Optional[Literal['cancel']]]] = None) -> None:
         """ Create logout form
-        config: Opitonal config for logout form
-        callback: Optional callback function when logout button is pressed.
+        config: Object | LogoutConfig | None
+            Opitonal config for logout form
+
+        callback: ((user: UserInfos | str) -> str | None) | None
+            Optional callback function.
+            - Return `'cancel'` will stop the logout process.
+            - Return `None` will continue logout process.
         """
-        (config, busy_message) = self.__getLogoutConfig(config)
+        (config, busy_message, sleep_sec) = self.__getLogoutConfig(config)
 
         # Create form
         result = self.ui.signoutForm(configs=config)
@@ -374,7 +387,7 @@ class Authenticate:
             self.__setUser(None)
             self.__deleteCookie()
             # give sometime for the browser cookie to get deleted
-            time.sleep(0.1)
+            time.sleep(sleep_sec)
             st.rerun()
 
 
