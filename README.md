@@ -215,9 +215,9 @@ def logout(event: SignoutEvent) -> Optional[Literal['cancel']]:
         return 'cancel'
 
 # Login Process
-user = auth.login()
+user = auth.login(callback=login)
 if user is not None:  
-    auth.createLogoutForm({'message': f"Welcome {user['displayName']}"})
+    auth.createLogoutForm({'message': f"Welcome {user['displayName']}"}, callback=logout)
     
     # Your page application can be written below  
     st.write("# Welcome to my App! 👋")
