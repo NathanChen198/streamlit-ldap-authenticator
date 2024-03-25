@@ -1,5 +1,5 @@
 # Author    : Nathan Chen
-# Date      : 23-Mar-2024
+# Date      : 25-Mar-2024
 
 
 import time
@@ -120,7 +120,6 @@ class Authenticate:
             The JWT cookie for passwordless reauthentication.
         """
         exp_date = datetime.utcnow() + timedelta(days=cookie_configs.expiry_days)
-        # print(f"ExpiryDate: {exp_date}")
         return jwt.encode({
             'user': user,
             'exp_date': exp_date.timestamp()
@@ -156,7 +155,7 @@ class Authenticate:
 
             return user
         except Exception as e:
-            # print(f'Token decode error: {e}')
+            print(f'Token decode error: {e}')
             return None
 
     def __getCookie(self) -> Optional[UserInfos]:
@@ -189,6 +188,7 @@ class Authenticate:
         token = self.__tokenEncode(self.cookie_configs, user)
         exp_date = datetime.now() + timedelta(days=self.cookie_configs.expiry_days)
         self.cookie_manager.set(self.cookie_configs.name, token, expires=exp_date)
+        time.sleep(0.1)
 
     def __deleteCookie(self):
         """ Delete the cookie in the client's browser
@@ -233,6 +233,7 @@ class Authenticate:
         result = self.ui.signinForm(default, config)
         if result is None: return None
 
+        if self.encryptor is not None: result = self.encryptor.decrypt(result)
         event = getEvent(result)
         if type(event) is not SigninEvent: return None
 
@@ -277,7 +278,9 @@ class Authenticate:
             * `str` error message when authentication fail.
         """
         if type(user) is not dict: return False
-        if additionalCheck is None: return True # No additional check is required
+        if additionalCheck is None:
+            if self.cookie_configs is not None and self.cookie_configs.auto_renewal: self.__setCookie(user)    
+            return True # No additional check is required
         result = additionalCheck(None, user)
         if result != True: return False
 
@@ -376,6 +379,7 @@ class Authenticate:
         result = self.ui.signoutForm(configs=config)
         if result is None: return None
         
+        if self.encryptor is not None: result = self.encryptor.decrypt(result)
         event = getEvent(result)
         if type(event) is not SignoutEvent: return None
 

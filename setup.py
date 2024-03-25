@@ -1,5 +1,5 @@
 # Author   : Nathan Chen
-# Date     : 23-Mar-2024
+# Date     : 25-Mar-2024
 
 
 from pathlib import Path
@@ -10,7 +10,7 @@ long_description = (this_directory / "README.md").read_text(encoding='UTF-8')
 
 setup(
     name='streamlit-ldap-authenticator',
-    version='0.2.0',
+    version='0.2.1',
     author='Nathan Chen',
     author_email='nathan.chen.198@gmail.com',
     description='Authenticate using ldap',

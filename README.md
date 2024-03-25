@@ -356,6 +356,9 @@ streamlit run list_login.py
 - Add pyjwt in the install requirement
 ### Version 0.2.0
 - Add callback argument in login and logout
+### Version 0.2.1
+- Fix cannot login if encryptor module is provided.
+- Fix cookie auto renewal not working when no additionalCheck parameter is provided.
 
 
 
