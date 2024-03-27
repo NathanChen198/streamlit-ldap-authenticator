@@ -359,6 +359,8 @@ streamlit run list_login.py
 ### Version 0.2.1
 - Fix cannot login if encryptor module is provided.
 - Fix cookie auto renewal not working when no additionalCheck parameter is provided.
+### Version 0.2.2
+- Fix misleading error message of "Wrong username or password" when there is an exception occured during ldap connection
 
 
 

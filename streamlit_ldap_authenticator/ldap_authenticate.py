@@ -1,11 +1,10 @@
 # Author    : Nathan Chen
-# Date      : 5-Mar-2024
+# Date      : 27-Mar-2024
 
 
 
 
 
-import traceback
 from ldap3 import Server, Connection
 from ldap3.abstract.entry import Entry
 from typing import Union, Callable, Literal, Optional, List, Dict
@@ -70,9 +69,7 @@ class LdapAuthenticate:
             if result == True: return user
             else : return result
         except Exception as e:
-            print("Login error occured:", e)
-            print(traceback.format_exc())
-            return 'Wrong username or password'
+            return str(e).replace(self.config.server_path, 'server')
         finally:
             if conn.bound: conn.unbind()
 
