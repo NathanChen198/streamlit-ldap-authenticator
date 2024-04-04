@@ -1,5 +1,5 @@
 # Author    : Nathan Chen
-# Date      : 27-Mar-2024
+# Date      : 04-Apr-2024
 
 
 
@@ -60,6 +60,7 @@ class LdapAuthenticate:
         conn = Connection(server, username, password, auto_bind=False, auto_referrals=False, raise_exceptions=False)
         try:
             conn.bind()
+            conn.password = None
             if conn.result['result'] != 0: return 'Wrong username or password'
             user = getInfo(conn)
             if user is None: return f"No information found in active directory for '{username}'"

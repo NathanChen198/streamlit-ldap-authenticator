@@ -488,6 +488,10 @@ streamlit run list_login.py
 
 - Fix misleading error message of "Wrong username or password" when there is an exception occured during ldap connection
 
+### Version 0.2.3
+
+- Enhance security by clearing password from Connection object after bind.
+
 [pypi_badge]: https://img.shields.io/pypi/v/streamlit-ldap-authenticator.svg
 [pypi_link]: https://pypi.org/project/streamlit-ldap-authenticator
 [pypi_download_badge]: https://static.pepy.tech/badge/streamlit-ldap-authenticator

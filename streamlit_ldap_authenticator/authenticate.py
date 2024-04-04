@@ -1,5 +1,5 @@
 # Author    : Nathan Chen
-# Date      : 25-Mar-2024
+# Date      : 04-Apr-2024
 
 
 import time
@@ -233,7 +233,7 @@ class Authenticate:
         result = self.ui.signinForm(default, config)
         if result is None: return None
 
-        if self.encryptor is not None: result = self.encryptor.decrypt(result)
+        if self.encryptor is not None and type(result) is str: result = self.encryptor.decrypt(result)
         event = getEvent(result)
         if type(event) is not SigninEvent: return None
 
@@ -379,7 +379,7 @@ class Authenticate:
         result = self.ui.signoutForm(configs=config)
         if result is None: return None
         
-        if self.encryptor is not None: result = self.encryptor.decrypt(result)
+        if self.encryptor is not None and type(result) is str: result = self.encryptor.decrypt(result)
         event = getEvent(result)
         if type(event) is not SignoutEvent: return None
 
