@@ -1,5 +1,6 @@
 # Author    : Nathan Chen
-# Date      : 04-Apr-2024
+# Date      : 27-Apr-2024
+
 
 
 import time
@@ -40,11 +41,12 @@ class Authenticate:
     cookie_configs: Optional[CookieConfig]
 
 
-    def __init__(self,
-                 ldap_configs: Union[LdapConfig, AttrDict],
-                 session_configs: Union[SessionStateConfig, AttrDict, None] = None,
-                 cookie_configs: Union[CookieConfig, AttrDict, None] = None,
-                 encryptor_configs: Union[EncryptorConfig, AttrDict, None] = None):
+    def __init__(
+            self,
+            ldap_configs: Union[LdapConfig, AttrDict],
+            session_configs: Union[SessionStateConfig, AttrDict, None] = None,
+            cookie_configs: Union[CookieConfig, AttrDict, None] = None,
+            encryptor_configs: Union[EncryptorConfig, AttrDict, None] = None):
         """ Create a new instance of `Authenticate`
 
         ## Arguments
@@ -188,7 +190,7 @@ class Authenticate:
         token = self.__tokenEncode(self.cookie_configs, user)
         exp_date = datetime.now() + timedelta(days=self.cookie_configs.expiry_days)
         self.cookie_manager.set(self.cookie_configs.name, token, expires=exp_date)
-        time.sleep(0.1)
+        time.sleep(self.cookie_configs.delay_sec)
 
     def __deleteCookie(self):
         """ Delete the cookie in the client's browser
@@ -199,11 +201,11 @@ class Authenticate:
         cookies = self.cookie_manager.getAll()
         if self.cookie_configs.name in cookies:
             self.cookie_manager.remove(self.cookie_configs.name)
+            time.sleep(self.cookie_configs.delay_sec)
 
     def __getLoginConfig(self, config: Union[Object, LoginConfig, None] = None):
         config = config if type(config) is dict else \
-            config.toDict() if isinstance(config, LoginConfig) else \
-            {}
+            config.toDict() if isinstance(config, LoginConfig) else {}
         
         if self.cookie_configs is not None and 'remember' not in config:
             config['remember'] = {}

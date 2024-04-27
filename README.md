@@ -496,6 +496,10 @@ streamlit run list_login.py
 
 - Fix 'no attribute in signinevent' when cookie option is disabled.
 
+### Version 0.2.5
+
+- Add Optional delay_sec in cookie config for set and del cookie.
+
 [pypi_badge]: https://img.shields.io/pypi/v/streamlit-ldap-authenticator.svg
 [pypi_link]: https://pypi.org/project/streamlit-ldap-authenticator
 [pypi_download_badge]: https://static.pepy.tech/badge/streamlit-ldap-authenticator

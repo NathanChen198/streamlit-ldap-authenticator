@@ -1,7 +1,5 @@
 # Author    : Nathan Chen
-# Date      : 23-Mar-2024
-
-
+# Date      : 27-Apr-2024
 
 
 
@@ -200,23 +198,28 @@ class CookieConfig(Config):
     __default_name__: str = "login_cookie"
     __default_expiry_days__: float = 1.0
     __default_auto_renewal__: bool = True
+    __default_delay_sec__: float = 0.1
 
     
     key: str
     name: str
     expiry_days: float
     auto_renewal: bool
+    delay_sec: float
 
-    def __init__(self, key: str,
-                 name: str = __default_name__,
-                 expiry_days: float = __default_expiry_days__,
-                 auto_renewal: bool = __default_auto_renewal__):
+    def __init__(
+            self, key: str,
+            name: str = __default_name__,
+            expiry_days: float = __default_expiry_days__,
+            auto_renewal: bool = __default_auto_renewal__,
+            delay_sec: float = __default_delay_sec__):
         """ Create an instance of `CookieConfig` object
         """
         self.key = key
         self.name = name
         self.expiry_days = expiry_days
         self.auto_renewal = auto_renewal
+        self.delay_sec = delay_sec
 
     @classmethod
     def from_dict(cls, dict: AttrDict) -> 'CookieConfig':
