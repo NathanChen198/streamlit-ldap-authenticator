@@ -65,6 +65,7 @@ name = "login_cookie"
 key = "{any password for encryption}"
 expiry_days = 1
 auto_renewal = true
+delay_sec = 0.1
 ```
 
 Create a new file simple_login.py with the following code:
@@ -180,6 +181,7 @@ Configuration to store user information to the cookie in client's browser. Thus 
 | key | str | encryption key to encrypt user information
 | expiry_days | float | expiry date for the cookie
 | auto_renewal | bool | Cookie will expire after defined days from the **last activity** when value is `True`. Cookie will expire after defined days from the **last login** when value is `False`.
+| delay_sec | float | Delay in sec after set or delete cookie
 
 ### EncryptorConfig
 
