@@ -73,11 +73,14 @@ AttrDict = Union[_AttrDict, dict]
 
 class Config:
     @classmethod
-    def _getAttrWithDefault(cls, dict: AttrDict, key: str, _type: Type, defaultValue: T): # type: ignore
+    def _getAttrWithDefault(cls, dict: AttrDict, key: str, _type: Union[Type, List[Type]], defaultValueIfNone: T): # type: ignore
         if key in dict:
             value = dict[key]
-            value = value if type(value) is _type else defaultValue
-        else: value = defaultValue
+            if type(_type) is list:
+                if not any([type(value) is t for t in _type]): raise ValueError(f"'{value}' is not a valid {key}")
+            else:
+                if not type(value) is _type: raise ValueError(f"'{value}' is not a valid {key}")
+        else: value = defaultValueIfNone
         return value
     
     @classmethod
@@ -225,9 +228,10 @@ class CookieConfig(Config):
     def from_dict(cls, dict: AttrDict) -> 'CookieConfig':
         key = cls._getAttr(dict, 'key', str)
         name = cls._getAttrWithDefault(dict, 'name', str, cls.__default_name__)
-        expiry_days = cls._getAttrWithDefault(dict, 'expiry_days', float, cls.__default_expiry_days__)
+        expiry_days = float(cls._getAttrWithDefault(dict, 'expiry_days', [float, int], cls.__default_expiry_days__))
         auto_renewal = cls._getAttrWithDefault(dict, 'auto_renewal', bool, cls.__default_auto_renewal__)
-        return CookieConfig(key, name, expiry_days, auto_renewal)
+        delay_sec = float(cls._getAttrWithDefault(dict, 'delay_sec', [float, int], cls.__default_delay_sec__))
+        return CookieConfig(key, name, expiry_days, auto_renewal, delay_sec)
 
     @classmethod
     def getInstance(cls, value: Union['CookieConfig', AttrDict, None]) -> Optional['CookieConfig']:

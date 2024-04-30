@@ -502,6 +502,10 @@ streamlit run list_login.py
 
 - Add Optional delay_sec in cookie config for set and del cookie.
 
+### Version 0.2.6
+
+- Fix `expiry_days` and `delay_sec` is not parse correctly from secrets.toml in CookieConfig.
+
 [pypi_badge]: https://img.shields.io/pypi/v/streamlit-ldap-authenticator.svg
 [pypi_link]: https://pypi.org/project/streamlit-ldap-authenticator
 [pypi_download_badge]: https://static.pepy.tech/badge/streamlit-ldap-authenticator
